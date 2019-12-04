@@ -6,9 +6,9 @@ import pathlib
 import hickle as hkl
 
 data_path = "/storage/imagewoof"
-data_dir = pathlib.Path(data_path)
+data_dir = pathlib.Path(data_path + "/train")
 CLASS_NAMES = np.array([item.name for item in data_dir.glob('*') if item.name != "LICENSE.txt"])
-IMG_SIZE = 400
+IMG_SIZE = 300
 def load_example(image_path):
        
     image = tf.io.read_file(image_path)
@@ -36,12 +36,12 @@ def get_image_list(path):
 
 
 def create_datasets(batch_size, data_path):
-    train_path = "/{0}/train".format(data_path)
+    train_path = "{0}/train".format(data_path)
     train_image_list = get_image_list(train_path)
     ds_train = tf.data.Dataset.from_tensor_slices(train_image_list)
     ds_train = ds_train.map(load_example).batch(batch_size).shuffle(1024).repeat()
     
-    val_path = "/{0}/val".format(data_path)
+    val_path = "{0}/val".format(data_path)
     val_image_list = get_image_list(val_path)
     ds_val = tf.data.Dataset.from_tensor_slices(val_image_list)
     ds_val = ds_val.map(load_example).batch(batch_size)
@@ -49,25 +49,25 @@ def create_datasets(batch_size, data_path):
     return ds_train, ds_val, len(train_image_list), len(val_image_list)
 
 def load_datasets_from_disk(batch_size, path):
-    train_path = "/{0}/train/np_train.hkl".format(path)
+    train_path = "{0}/train/np_train.hkl".format(path)
     ds_train = hkl.load(train_path)
     ds_train = tf.data.Dataset.from_tensor_slices(train_image_list)
     ds_train = ds_train.map(load_example).batch(batch_size).shuffle(1024).repeat()
     
-    val_path = "/{0}/val/np_val.hkl".format(path)
+    val_path = "{0}/val/np_val.hkl".format(path)
     ds_val = hkl.load(val_path)
     ds_val = tf.data.Dataset.from_tensor_slices(val_image_list)
     ds_val = ds_val.map(load_example).batch(batch_size)
     
 
-BATCH_SIZE = 32
+BATCH_SIZE = 24
 ds_train, ds_val, train_length, val_length = create_datasets(BATCH_SIZE, data_path)
 
 inputs = tf.keras.layers.Input((None,IMG_SIZE,IMG_SIZE,3))
 mn = mobilenet.MobileNet(input_shape=(IMG_SIZE,IMG_SIZE,3), alpha=1.0, include_top=False, weights=None)
 net = tf.keras.layers.TimeDistributed(mn, name="mn")(inputs)
 #net = tf.keras.layers.TimeDistributed(tf.keras.layers.Dropout(0.4))(net)
-net = tf.keras.layers.ConvLSTM2D(640,3, return_sequences=True)(net)
+net = tf.keras.layers.ConvLSTM2D(100,3, return_sequences=True)(net)
 net = tf.keras.layers.TimeDistributed(tf.keras.layers.AveragePooling2D(2))(net)
 net = tf.keras.layers.TimeDistributed(tf.keras.layers.Flatten())(net)
 net = tf.keras.layers.TimeDistributed(tf.keras.layers.Dense(10, activation="softmax"))(net)
